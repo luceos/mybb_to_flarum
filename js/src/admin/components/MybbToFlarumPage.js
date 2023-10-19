@@ -8,7 +8,7 @@ import Stream from 'flarum/utils/Stream';
 export default class MybbToFlarumPage extends ExtensionPage {
     oninit(vnode) {
         super.oninit(vnode);
-        
+
         this.migrateAvatars = Stream(false);
         this.migrateSoftThreads = Stream(false);
         this.migrateSoftPosts = Stream(false);
@@ -40,7 +40,7 @@ export default class MybbToFlarumPage extends ExtensionPage {
                 <div className="mybbtoflarumPage-content">
                     <div className="container">
                         <form onsubmit={this.onsubmit.bind(this)}>
-                            
+
                         <FieldSet label={app.translator.trans('michaelbelgium-mybb-to-flarum.admin.content.form.general.title')}>
                             {[
                                 Switch.component({
@@ -96,7 +96,7 @@ export default class MybbToFlarumPage extends ExtensionPage {
                                             $("input[name=mybbPath]").attr("disabled", "disabled");
                                     }
                                 }, app.translator.trans('michaelbelgium-mybb-to-flarum.admin.content.form.options.migrate_avatars_label')),
-                                
+
                                 Switch.component({
                                     state: this.migrateAttachments(),
                                     onchange: (value) => {
@@ -145,7 +145,7 @@ export default class MybbToFlarumPage extends ExtensionPage {
                                     icon: 'fas fa-exchange-alt',
                                     type: 'submit',
                                     loading: this.loading
-                                }, 
+                                },
                                 app.translator.trans('michaelbelgium-mybb-to-flarum.admin.content.convert_button')
                             )}
                         </form>
@@ -154,7 +154,7 @@ export default class MybbToFlarumPage extends ExtensionPage {
             </div>
         );
     }
-    
+
     onsubmit(e) {
         e.preventDefault();
         this.loading = true;
@@ -168,7 +168,7 @@ export default class MybbToFlarumPage extends ExtensionPage {
         }
 
         Object.keys(this.mybb).forEach(key => {
-            if(key !== 'mybbPath' && key !== 'prefix' && this.mybb[key]() === '')
+            if(key !== 'mybbPath' && key !== 'password' && key !== 'prefix' && this.mybb[key]() === '')
             {
                 alert('Mybb: ' + key + ' can not be empty');
                 fail = true;

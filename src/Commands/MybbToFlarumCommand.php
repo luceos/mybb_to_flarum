@@ -39,7 +39,7 @@ class MybbToFlarumCommand extends AbstractCommand
         $this
             ->setName('migrate-data:from-mybb')
             ->setDescription('Migrates data from an existing mybb forum');
-        
+
         foreach ($this->options as $option) {
             $this->addOption(...$option);
         }
@@ -47,6 +47,8 @@ class MybbToFlarumCommand extends AbstractCommand
 
     protected function fire()
     {
+        @ini_set('memory_limit', -1);
+
         $host = $this->getOptionOrPrompt('host');
         $user = $this->getOptionOrPrompt('user');
         $password = $this->getOptionOrPrompt('password');
@@ -88,8 +90,8 @@ class MybbToFlarumCommand extends AbstractCommand
             $migrator = new Migrator(
                 $host,
                 $user,
-                $password,
                 $db,
+                $password,
                 $prefix,
                 $path
             );

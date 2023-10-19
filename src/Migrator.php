@@ -14,7 +14,7 @@ use Ramsey\Uuid\Uuid;
 
 /**
  * Migrator class
- * 
+ *
  * Connects to a mybb forum and migrates different elements
  */
 class Migrator
@@ -38,13 +38,13 @@ class Migrator
      * Migrator constructor
      *
      * @param string $host
-     * @param string $user 		
+     * @param string $user
      * @param string $password
      * @param string $db
      * @param string $prefix
      * @param string $mybbPath
      */
-    public function __construct(string $host, string $user, string $password, string $db, string $prefix, string $mybbPath = '') 
+    public function __construct(string $host, string $user, string $db, ?string $password = '', ?string $prefix = '', ?string $mybbPath = '')
     {
         $this->connection = new \mysqli($host, $user, $password, $db);
         $this->connection->set_charset('utf8');
@@ -52,11 +52,11 @@ class Migrator
 
         if(substr($mybbPath, -1) != '/')
             $mybbPath .= '/';
-        
+
         $this->mybb_path = $mybbPath;
     }
 
-    function __destruct() 
+    function __destruct()
     {
         if(!is_null($this->getMybbConnection()))
             $this->getMybbConnection()->close();
@@ -93,18 +93,38 @@ class Migrator
     public function migrateUsers(bool $migrateAvatars = false, bool $migrateWithUserGroups = false)
     {
         $this->disableForeignKeyChecks();
-        
-        $users = $this->getMybbConnection()->query("SELECT uid, username, email, postnum, threadnum, FROM_UNIXTIME( regdate ) AS regdate, FROM_UNIXTIME( lastvisit ) AS lastvisit, usergroup, additionalgroups, avatar, lastip FROM {$this->getPrefix()}users");
-        
+
+        $users = $this->getMybbConnection()->query(
+            "SELECT uid, username, email, postnum, threadnum, FROM_UNIXTIME( regdate ) AS regdate, FROM_UNIXTIME( lastvisit ) AS lastvisit, usergroup, additionalgroups, avatar, lastip FROM {$this->getPrefix()}users where email <> ''"
+        );
+
         if($users->num_rows > 0)
         {
             User::truncate();
 
             while($row = $users->fetch_object())
             {
+                $multipleUsersWithMailAddress = User::query()->where('email', $row->email)->exists();
+
+                $email = $row->email;
+
+                if ($multipleUsersWithMailAddress > 0) {
+                    preg_match('~^(?<address>[^+]+)(\+(?<subaddressing>.*))?@(?<domain>.*)$~', $email, $m);
+
+                    $email = $m['address'] . '+';
+
+                    if ($m['subaddressing']) {
+                        $email .= $m['subaddressing'] . '-' . Str::random(8);
+                    } else {
+                        $email .= Str::random(8);
+                    }
+
+                    $email .= '@' . $m['domain'];
+                }
+
                 $newUser = User::register(
-                    $row->username, 
-                    $row->email, 
+                    $row->username,
+                    $email,
                     ''
                 );
 
@@ -138,7 +158,7 @@ class Migrator
                     if(!empty($row->additionalgroups))
                     {
                         $userGroups = array_merge(
-                            $userGroups, 
+                            $userGroups,
                             array_map("intval", explode(",", $row->additionalgroups))
                         );
                     }
@@ -146,7 +166,9 @@ class Migrator
                     foreach($userGroups as $group)
                     {
                         if($group <= 7) continue;
-                        $newUser->groups()->save(Group::find($group));
+                        try {
+                            $newUser->groups()->save(Group::find($group));
+                        } catch (\Exception $e) {}
                     }
                 }
 
@@ -196,14 +218,14 @@ class Migrator
      * @param bool $migrateSoftDeletePosts Migrate also soft deleted posts from mybb
      */
     public function migrateDiscussions(
-        bool $migrateWithUsers, bool $migrateWithCategories, bool $migrateSoftDeletedThreads, 
+        bool $migrateWithUsers, bool $migrateWithCategories, bool $migrateSoftDeletedThreads,
         bool $migrateSoftDeletePosts, bool $migrateAttachments
     ) {
         $migrateAttachments = class_exists('FoF\Upload\File') && $migrateAttachments;
 
         /** @var UrlGenerator $generator */
         $generator = resolve(UrlGenerator::class);
-            
+
         $query = "SELECT tid, fid, subject, FROM_UNIXTIME(dateline) as dateline, uid, firstpost, FROM_UNIXTIME(lastpost) as lastpost, lastposteruid, closed, sticky, visible FROM {$this->getPrefix()}threads";
         if(!$migrateSoftDeletedThreads)
         {
@@ -228,8 +250,9 @@ class Migrator
 
                 if($migrateWithUsers)
                     $discussion->user()->associate(User::find($trow->uid));
-                
-                $discussion->slug = $this->slugDiscussion($trow->subject);
+
+                $discussion->slug = $slug = $this->slugDiscussion($trow->subject);
+                $discussion->mybb_slug = $slug;
                 $discussion->is_approved = true;
                 $discussion->is_locked = $trow->closed == "1";
                 $discussion->is_sticky = $trow->sticky;
@@ -249,12 +272,12 @@ class Migrator
                 {
                     do {
                         $tag->discussions()->save($discussion);
-    
+
                         if(is_null($tag->parent_id))
                             $continue = false;
                         else
                             $tag = Tag::find($tag->parent_id);
-                        
+
                     } while($continue);
                 }
 
@@ -291,7 +314,7 @@ class Migrator
                     $this->count["posts"]++;
 
                     if($migrateAttachments)
-                    {                        
+                    {
                         $attachments = $this->getMybbConnection()->query("SELECT * FROM {$this->getPrefix()}attachments WHERE pid = {$prow->pid}");
 
                         while ($arow = $attachments->fetch_object())
@@ -332,7 +355,7 @@ class Migrator
 
                 if($firstPost !== null)
                     $discussion->setFirstPost($firstPost);
-                
+
                 $discussion->refreshCommentCount();
                 $discussion->refreshLastPost();
                 $discussion->refreshParticipantCount();
@@ -342,12 +365,13 @@ class Migrator
 
             if($migrateWithUsers)
             {
-                foreach ($usersToRefresh as $userId) 
+                foreach ($usersToRefresh as $userId)
                 {
-                    $user = User::find($userId);
-                    $user->refreshCommentCount();
-                    $user->refreshDiscussionCount();
-                    $user->save();
+                    if ($user = User::find($userId)) {
+                        $user->refreshCommentCount();
+                        $user->refreshDiscussionCount();
+                        $user->save();
+                    }
                 }
             }
         }
