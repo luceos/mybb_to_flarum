@@ -252,7 +252,7 @@ class Migrator
                     $discussion->user()->associate(User::find($trow->uid));
 
                 $discussion->slug = $slug = $this->slugDiscussion($trow->subject);
-                $discussion->mybb_slug = $slug;
+                $discussion->seo_slug = $slug;
                 $discussion->is_approved = true;
                 $discussion->is_locked = $trow->closed == "1";
                 $discussion->is_sticky = $trow->sticky;
