@@ -1,5 +1,5 @@
 {
-    "name": "michaelbelgium/mybb-to-flarum",
+    "name": "luceos/mybb-to-flarum",
     "description": "Migrate a MyBB Forum to a fresh Flarum instance",
     "type": "flarum-extension",
     "require": {
@@ -25,10 +25,8 @@
             "Michaelbelgium\\Mybbtoflarum\\": "src/"
         }
     },
-    "support": {
-        "issues": "https://github.com/michaelbelgium/mybb_to_flarum/issues",
-        "source": "https://github.com/michaelbelgium/mybb_to_flarum",
-        "forum": "https://discuss.flarum.org/d/5506"
+    "conflict": {
+        "michaelbelgium/mybb-to-flarum": "*"
     },
     "extra": {
         "flarum-extension": {
