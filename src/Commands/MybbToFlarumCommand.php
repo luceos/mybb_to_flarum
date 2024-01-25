@@ -32,6 +32,8 @@ class MybbToFlarumCommand extends AbstractCommand
         'soft-posts' => ['soft-posts', null, InputOption::VALUE_NONE, 'Import soft deleted posts'],
         'soft-threads' => ['soft-threads', null, InputOption::VALUE_NONE, 'Import soft deleted threads'],
         'attachments' => ['attachments', null, InputOption::VALUE_NONE, 'Import attachments'],
+
+        'migrate-password' => ['migrate-password', null, InputOption::VALUE_NONE, 'Store mybb password into Flarum users table to allow logging in using blomstra/migrate-password'],
     ];
 
     protected function configure()
@@ -64,6 +66,8 @@ class MybbToFlarumCommand extends AbstractCommand
         $doCategories = $this->input->getOption('categories');
         $path = $this->input->getOption('path');
         $prefix = $this->input->getOption('prefix');
+
+        $migrate_passwords = $this->input->getOption('migrate-password');
 
         if(!$doUsers && !$doCategories && !$doGroups && !$doThreadsPosts) {
             $this->error('Nothing will be imported. Please provide the option if you want to import users (--users), groups (--groups), threads/posts (--threads-posts) or categories (--categories).');
@@ -100,7 +104,7 @@ class MybbToFlarumCommand extends AbstractCommand
                 $migrator->migrateUserGroups();
 
             if ($doUsers)
-                $migrator->migrateUsers($migrate_avatars, $doGroups);
+                $migrator->migrateUsers($migrate_avatars, $doGroups, $migrate_passwords);
 
             if ($doCategories)
                 $migrator->migrateCategories();

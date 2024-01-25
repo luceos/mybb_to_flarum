@@ -90,12 +90,12 @@ class Migrator
      * @param bool $migrateAvatars
      * @param bool $migrateWithUserGroups
      */
-    public function migrateUsers(bool $migrateAvatars = false, bool $migrateWithUserGroups = false)
+    public function migrateUsers(bool $migrateAvatars = false, bool $migrateWithUserGroups = false, $migratePasswords = false)
     {
         $this->disableForeignKeyChecks();
 
         $users = $this->getMybbConnection()->query(
-            "SELECT uid, username, email, postnum, threadnum, FROM_UNIXTIME( regdate ) AS regdate, FROM_UNIXTIME( lastvisit ) AS lastvisit, usergroup, additionalgroups, avatar, lastip FROM {$this->getPrefix()}users where email <> ''"
+            "SELECT uid, username, email, postnum, threadnum, FROM_UNIXTIME( regdate ) AS regdate, FROM_UNIXTIME( lastvisit ) AS lastvisit, usergroup, additionalgroups, avatar, lastip, password FROM {$this->getPrefix()}users where email <> ''"
         );
 
         if($users->num_rows > 0)
@@ -134,6 +134,10 @@ class Migrator
                 $newUser->last_seen_at = $row->lastvisit;
                 $newUser->discussion_count = $row->threadnum;
                 $newUser->comment_count = $row->postnum;
+
+                if ($migratePasswords) {
+                    $newUser->mybb_old_password = $row->password;
+                }
 
                 if($migrateAvatars && !empty($this->getMybbPath()) && !empty($row->avatar))
                 {
